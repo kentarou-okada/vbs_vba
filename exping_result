@@ -1,0 +1,320 @@
+'BATからの引数
+' objArgs(0) = 試験番号
+' objArgs(1) = AddressList(FileName)
+' objArgs(2) = PCInfo
+'BATにて、ExPing_断時間まとめ.vbs %INPUT%_%Filename% %addresslist% %PCInfo% を1行入れ、引数を指定
+
+Option Explicit
+
+Dim objFSO
+Set objFSO = WScript.CreateObject("Scripting.FileSystemObject")
+
+Dim objWsShell
+Set objWsShell = WScript.CreateObject("WScript.Shell")
+
+Dim objArgs
+Set objArgs = WScript.Arguments
+
+Dim strTestNum,strAddressList,strSrcPC
+strTestNum = objArgs(0)
+strAddressList = objArgs(1)
+strSrcPC = objArgs(2)
+
+Dim strWorkDir
+strWorkDir = objFSO.GetParentFolderName(WScript.ScriptFullName)
+
+Dim strPingDir
+strPingDir = objFSO.BuildPath(strWorkDir & "\ping_trace_log",strTestNum)
+
+
+'複数ファイルを解析する際に、結果一覧の有無 (True / False)
+
+Dim ResultList,ResultFolder
+ResultList = True
+
+'vbsカレントディレクトリ配下 "断時間まとめ" を作成
+ResultFolder = objFSO.BuildPath(strWorkDir,"断時間まとめ")
+If Not objFSO.FolderExists(ResultFolder) Then
+	objFSO.CreateFolder ResultFolder
+End If
+
+
+'結果表示のアドレス解決の有無 (True / False)
+
+Dim TransferFlag
+TransferFlag = True
+
+'結果ファイルを自動的に開く
+Dim blnOpenFile
+blnOpenFile = True
+
+'テキストファイル操作時の引数指定
+Const ForReading = 1,ForWriting = 2,ForAppending = 8
+
+
+'結果ファイル指定
+Dim strResultFile
+Dim objResultFile
+Dim objAnalyzeFile
+Dim strAnalysisDate : strAnalysisDate = Replace(Replace(Replace(CStr(Now()), "/",""),":","")," ","-")
+If ResultList = True Then
+'    strResultFile = strTestNum & "_" & Year(Date) &  Month(Date) & Day(Date)
+    strResultFile = strTestNum & "_" & strAnalysisDate
+    Set objResultFile = objFSO.CreateTextFile(ResultFolder & "\" & strResultFile & "_LIST.log",True)
+    objResultFile.Close
+    Set objAnalyzeFile = _
+        objFSO.CreateTextFile(ResultFolder & "\" & strResultFile & "_断時間まとめ.log",True)
+    objAnalyzeFile.Close
+End If
+
+
+'ディレクトリ内の.csvファイルを対象に処理
+Dim objFolder
+Dim objFile
+Dim objLogFile
+Set objFolder = objFSO.GetFolder(strPingDir)
+For Each objFile In objFolder.Files
+    If objFSO.GetExtensionName(objFile.Name) = "csv" Then
+        Dim ENDFLAG
+        ENDFLAG = False
+    
+        '集計処理
+        Dim sWord
+        sWord = "ＮＧ"
+        
+        Set objLogFile = objFSO.OpenTextFile(objFile.Path,ForReading)
+        Set objResultFile = objFSO.OpenTextFile(ResultFolder & "\" & strResultFile & "_LIST.log",ForWriting)
+        
+        Dim Result,Before_Line,Current_Line,strBiko,NoMatchFlag,RepeatMatchFlag,WriteFlag
+        Dim intCounter,RecoveryFlag
+        Result = ""
+        Before_Line = ""
+        Current_Line = ""
+        strBiko = ""
+        NoMatchFlag = True
+        RepeatMatchFlag = False
+        WriteFlag = 0
+        intCounter = 0
+        RecoveryFlag = False
+        Do Until objLogFile.AtEndOfStream
+            Current_Line = objLogFile.ReadLine
+            If InStr(Current_Line,sWord)<>0 Then
+                If InStr(Before_Line,sWord)=0 Then
+                    objResultFile.WriteBlankLines 2
+                    objResultFile.Write Before_Line & vbCrLf
+                    NoMatchFlag = False
+                    RepeatMatchFlag = True
+                End If
+                
+                objResultFile.Write Current_Line & vbCrLf
+                WriteFlag = 1
+            End If
+            
+            If RepeatMatchFlag=True Then
+                If InStr(Current_Line,sWord)=0 Then
+                    objResultFile.Write Current_Line & vbCrLf
+                    RepeatMatchFlag = False
+                End If
+            End If
+            
+            Before_Line = Current_Line
+        Loop
+        
+        'IPアドレス情報取得
+        Dim aryString,DstAddr
+        aryString = Split(Before_Line, ",")
+        DstAddr = aryString(2)
+
+        objLogFile.Close
+        objResultFile.Close
+
+        'NGがなかった場合の処理
+        If NoMatchFlag = True Then
+            Dim oTs3
+            Set oTs3 = objFSO.OpenTextFile(ResultFolder & "\" & strResultFile & "_断時間まとめ.log",ForAppending)
+    
+            oTs3.Write "ファイル名 : "& objFile.Name & vbCrLf
+            oTs3.WriteBlankLines 1
+            oTs3.Write "障害なし : ダウンタイムなし"& vbCrLf
+            oTs3.Write "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            oTs3.WriteBlankLines 1
+    
+            oTs3.Close
+            ENDFLAG = TRUE
+            Result = "0"
+            
+
+        End If
+
+        'NGで終了している場合の処理    
+        If InStr(Current_Line,sWord)<>0 Then
+            strBiko = "NGで終了しています"
+            Result = "NG-END"
+        End If
+
+        'NGが1回でもあった場合の処理
+        IF ENDFLAG <> TRUE Then
+            Dim objTempFile
+            Set objResultFile = objFSO.OpenTextFile(ResultFolder & "\" & strResultFile & "_LIST.log",ForReading)
+            Set objTempFile  = objFSO.CreateTextFile(ResultFolder & "\" & strResultFile & "_TEMP.log",True)
+
+            sWord = "ＯＫ"
+            Dim StartFlag,MatchCount,FirstMatchFlag
+            StartFlag = False
+            MatchCount = 1
+            FirstMatchFlag = True
+
+            '解析用ファイルの最後の行まで
+            Do Until objResultFile.AtEndOfStream
+                Current_Line = objResultFile.ReadLine
+                
+                Dim RecoveryTime
+                '空白行だった場合、StartFlagをFalseにリセット
+                If Current_Line = "" Then
+                    StartFlag = False
+                    'OKの出現が1回のみで空白行だった場合、NGからの復旧とみなす
+                    If intCounter = 1 Then
+                        If RecoveryFlag = False Then
+                            RecoveryTime = Mid(Before_Line,18,8)
+                            RecoveryFlag = True
+                        End If
+                    End If
+                End If
+                
+                'OKの行だったら
+                If InStr(Current_Line,sWord)<>0 Then
+                intCounter = intCounter + 1
+                
+              
+                    Dim Start_Hour,Start_Minute,Start_Second,Start_Time
+                    
+                    '障害時間となるOKだった場合値を格納
+                    If StartFlag = False Then
+                        Start_Hour = Mid(Current_Line,18,2)
+                        Start_Minute = Mid(Current_Line,21,2)
+                        Start_Second = Mid(Current_Line,24,2)
+                        Start_Time = Mid(Current_Line,18,8)
+                        StartFlag = True
+                    
+                    '収束時間となるOKだった場合結果を出力
+                    Else
+                        '2回目以降の障害復旧の場合ファイルに出力
+                        If FirstMatchFlag = False Then
+                    
+                            If Start_Second < End_Second Then
+                                End_Second = End_Second - 60
+                                End_Minute = End_Minute + 1
+                            End if
+        
+                            If (End_Minute - Start_Minute) > 0 Then
+                                End_Minute = End_Minute - 60
+                            End if
+        
+                                objTempFile.WriteBlankLines 1
+                                objTempFile.Write "-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
+                                objTempFile.WriteBlankLines 1
+        
+                                Result = Result & ((Start_Minute - End_Minute) * 60) + (Start_Second - End_Second) & "U"
+        
+                        End If
+                        
+                        '収束時間を計算
+                        Dim End_Hour,End_Minute,End_Second,End_Time
+                        End_Hour = Mid(Current_Line,18,2)
+                        End_Minute = Mid(Current_Line,21,2)
+                        End_Second = Mid(Current_Line,24,2)
+                        End_Time = Mid(Current_Line,18,8)
+        
+                        If Start_Second > End_Second Then
+                            End_Second = End_Second + 60
+                            End_Minute = End_Minute - 1
+                        End if
+        
+                        If (End_Minute - Start_Minute) < 0 Then
+                             End_Minute = End_Minute + 60
+                        End if
+        
+                        objTempFile.Write "障害 : " & MatchCount & vbCrLf
+                        objTempFile.Write "障害発生 : " & Start_Time & "　障害収束 : " & End_Time & vbCrLf
+                        objTempFile.Write "ダウンタイム: " & End_Minute - Start_Minute & "分" & End_Second - Start_Second -1 & "秒"
+                        objTempFile.WriteBlankLines 2
+                        
+                        Result = Result & ((End_Minute - Start_Minute) * 60) + (End_Second - Start_Second) & "D"
+        
+                        StartFlag = False
+                        FirstMatchFlag = False
+                        MatchCount = MatchCount +1
+        
+                    End If
+                End If
+            Loop
+
+            objTempFile.Write "-*-*-*-*-*-*-*-*-*-*-*-*-*-*"
+            objTempFile.WriteBlankLines 1
+            objTempFile.Write strBiko
+            
+            If strBiko <> "" Then
+                If intCounter <> 0 Then
+                End If
+            End If
+            
+            objResultFile.Close
+            objTempFile.Close
+
+Dim oTs1,oTs2
+Set oTs1 = objFSO.OpenTextFile(ResultFolder & "\" & strResultFile & "_LIST.log",ForReading)
+Set oTs3 = objFSO.OpenTextFile(ResultFolder & "\" & strResultFile & "_断時間まとめ.log",ForAppending)
+oTs3.Write "ファイル名 : "& objFile.Name & vbCrLf
+
+If intCounter > 1 Then
+Set oTs2 = objFSO.OpenTextFile(ResultFolder & "\" & strResultFile & "_TEMP.log",ForReading)
+
+oTs3.Write "試験結果 : "& Result & vbCrLf
+oTs3.WriteBlankLines 1
+oTs3.Write oTs2.ReadAll
+oTs3.Write oTs1.ReadAll
+oTs2.Close
+
+ElseIf intCounter = 1 Then
+oTs3.WriteBlankLines 1
+oTs3.Write "復旧のみ"
+oTs3.Write oTs1.ReadAll
+RecoveryTime = Mid(Current_Line,18,8)
+Else
+oTs3.WriteBlankLines 1
+oTs3.Write "疎通なし"
+oTs3.Write oTs1.ReadAll
+
+
+End If
+oTs3.WriteBlankLines 1
+oTs3.Write "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+oTs3.WriteBlankLines 1
+
+oTs1.Close
+oTs3.Close
+
+
+        End If
+
+'報告書を作る
+
+
+    End If
+
+
+Next
+On Error Resume Next
+objFSO.DeleteFile ResultFolder & "\" & strResultFile & "_LIST.log"
+objFSO.DeleteFile ResultFolder & "\" & strResultFile & "_TEMP.log"
+On Error GoTo 0
+
+If blnOpenFile = True Then
+    objWsShell.Run (ResultFolder & "\" & strResultFile & "_断時間まとめ.log") 
+End If
+
+Set objFolder = Nothing
+Set objFile = Nothing
+Set objLogFile = Nothing
+Set objResultFile = Nothing
+
