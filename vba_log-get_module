@@ -743,3 +743,271 @@ Sub Logget1_Click()
     Next
 
 End Sub
+
+Sub login_Click()
+
+   Dim file_path As String             ' Excel保存パス
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim action
+    
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+
+    Call login_target_File
+    Call login_ttl_File
+    
+    Gyo = ActiveCell.Row
+    '出力値編集
+    If (Cells(Gyo, 4) <> "" And Cells(Gyo, 5) <> "" And Cells(Gyo, 6) <> "" And Cells(Gyo, 7) <> "" And Cells(Gyo, 8) <> "" And Gyo > 10) Then
+        'teraterm起動↓
+        action = Shell("C:\Program Files (x86)\teraterm\ttpmacro.exe " + file_path + "\login_macro0.ttl", 1)
+        
+    Else
+    
+        MsgBox Err.Description + "未入力項目があります。もしくは有効行が選択されていません。"
+    
+    End If
+
+End Sub
+
+
+Sub login_ttl_File()
+    Dim intFF_out As Integer            ' FreeFile値_出力用
+    Dim file_path As String             ' Excel保存パス
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim file_name As String             ' 出力ファイル名(IP/パス等)
+    Dim strREC As Variant               ' 出力値
+    Dim id As Integer                 '機器判別用変数
+    
+    
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+    file_name = "login_macro0.ttl"
+
+    strFileName_out = file_path + "\" + file_name
+            
+    ' FreeFile値の取得(以降この値で入出力する)
+    intFF_out = FreeFile
+
+    'エラー処理
+    On Error GoTo ErrorHandler
+
+    Gyo = ActiveCell.Row
+    '出力値編集
+    If Gyo < 11 Then
+        MsgBox "有効行を選択してください。"
+    Else
+        id = CInt(Cells(Gyo, 8).Value)
+    
+    End If
+    ' 指定ファイルをOPEN(入力モード)
+    Open strFileName_out For Output As #intFF_out
+    
+Print #intFF_out, ""
+Print #intFF_out, "fileopen fhandle 'login0.txt' 0"
+Print #intFF_out, ""
+Print #intFF_out, "filereadln fhandle line"
+Print #intFF_out, ""
+Print #intFF_out, "strlen line"
+Print #intFF_out, ""
+Print #intFF_out, "length = result"
+Print #intFF_out, ""
+Print #intFF_out, ";add_end:アドレスの末尾"
+Print #intFF_out, ";loginusr_start:ログインユーザ名の先頭"
+Print #intFF_out, ";loginuser_end:ログインユーザ名の末尾"
+Print #intFF_out, ";psw_start"
+Print #intFF_out, ";psw_end"
+Print #intFF_out, ";jg_start"
+Print #intFF_out, ";jg_end"
+Print #intFF_out, ";host_start"
+Print #intFF_out, ";host_end"
+Print #intFF_out, ""
+Print #intFF_out, ";引数分解"
+Print #intFF_out, "strscan line '%1'"
+Print #intFF_out, "add_end = result - 1"
+Print #intFF_out, "loginusr_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strscan line '%2'"
+Print #intFF_out, "loginusr_end = result - 1"
+Print #intFF_out, "psw_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strscan line '%3'"
+Print #intFF_out, "psw_end = result - 1"
+Print #intFF_out, "jg_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strscan line '%4'"
+Print #intFF_out, "jg_end = result - 1"
+Print #intFF_out, "host_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strlen line"
+Print #intFF_out, "host_end = result"
+Print #intFF_out, ""
+Print #intFF_out, ";アドレス"
+Print #intFF_out, "strcopy line 1 add_end address"
+Print #intFF_out, ";ログインユーザ名"
+Print #intFF_out, "tmpstrlen = loginusr_end - loginusr_start + 1"
+Print #intFF_out, "strcopy line loginusr_start tmpstrlen logusr"
+Print #intFF_out, ";パスワード"
+Print #intFF_out, "tmpstrlen = psw_end - psw_start + 1"
+Print #intFF_out, "strcopy line psw_start tmpstrlen psw"
+Print #intFF_out, ";機器の判別"
+Print #intFF_out, "strcopy line jg_start 1 hogehoge"
+Print #intFF_out, "str2int judge hogehoge"
+Print #intFF_out, ";ホストネーム(エクセルに入力したホスト名)"
+Print #intFF_out, "strcopy line host_start host_end hostname_excel"
+Print #intFF_out, ""
+Print #intFF_out, ""
+
+'##　KDDI環境ログイン処理
+If id < 10 Then
+Print #intFF_out, ";directorログイン============================================"
+Print #intFF_out, "PROMPT = '.+@.+[>#$:]'"
+Print #intFF_out, "PATH = 'X:\temp\'"
+Print #intFF_out, "connect 'ssh://admin@27.85.237.149 /auth=password /passwd=versa123'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "exec 'cmd /c md X:\temp'"
+Print #intFF_out, "getdate DATE '%Y%m%d_%H%M'"
+Print #intFF_out, "strconcat PATH hostname_excel"
+Print #intFF_out, "strconcat PATH '_'"
+Print #intFF_out, "strconcat PATH DATE"
+Print #intFF_out, "strconcat PATH '.log'"
+Print #intFF_out, "logopen PATH 0 1 0 0 0"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "pause 1"
+Print #intFF_out, ";ログイン判断(1=BOX,2=PC,3=RT)"
+Print #intFF_out, ""
+
+'##　NOS環境検証PCログイン処理
+ElseIf id = 13 Then
+
+Call PC_login_File
+Call PC_login
+GoTo Endmacro
+                
+'##　NOS環境ログイン処理
+Else
+Print #intFF_out, ";NOS検証機ログイン============================================"
+Print #intFF_out, "PROMPT = '.+@.+[>#$:]'"
+Print #intFF_out, "PATH = 'X:\temp\'"
+Print #intFF_out, "COMMAND = 'ssh://'"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "strconcat COMMAND ' /auth=password /passwd=Kdev?0802"
+Print #intFF_out, "connect COMMAND"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "exec 'cmd /c md X:\temp'"
+Print #intFF_out, "getdate DATE '%Y%m%d_%H%M'"
+Print #intFF_out, "strconcat PATH hostname_excel"
+Print #intFF_out, "strconcat PATH '_'"
+Print #intFF_out, "strconcat PATH DATE"
+Print #intFF_out, "strconcat PATH '.log'"
+Print #intFF_out, "logopen PATH 0 1 0 0 0"
+Print #intFF_out, "sendln"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait '>'"
+
+
+End If
+
+Print #intFF_out, ";### BOXログイン ######################################"
+Print #intFF_out, "if judge = 1 then"
+Print #intFF_out, "COMMAND = 'ssh '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, ""
+Print #intFF_out, ";### RTログイン ######################################"
+Print #intFF_out, "elseif judge = 2 then"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln 'ssh admin@10.100.134.86'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln 'Kdev?0802'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "COMMAND = 'ssh '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'enable'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "wait '#'"
+Print #intFF_out, ""
+Print #intFF_out, ";### PCログイン ######################################"
+Print #intFF_out, "elseif judge = 3 then"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln 'ssh admin@10.100.134.86'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln 'Kdev?0802'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait 'cli>'"
+Print #intFF_out, "COMMAND = 'ssh '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "Wait '$'"
+Print #intFF_out, ""
+Print #intFF_out, ";### RTログイン(telnet) ######################################"
+Print #intFF_out, "elseif judge = 4 then"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln 'ssh admin@10.100.134.86'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln 'Kdev?0802'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "COMMAND = 'telnet '"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "sendln COMMAND"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln logusr"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'enable'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "wait '#'"
+Print #intFF_out, ""
+Print #intFF_out, "endif"
+Print #intFF_out, ""
+
+' 指定ファイルをCLOSE
+Close #intFF_out
+
+    'エラー処理
+    Exit Sub
+ErrorHandler:
+    
+    MsgBox Err.Description + "エラーが発生したため処理を終了します。" + vbLf + "「ttlファイル」または「src.txt」を閉じてください"
+    
+Endmacro:
+
+End Sub
+
+
