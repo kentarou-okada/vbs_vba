@@ -681,3 +681,65 @@ ErrorHandler:
 Endmacro:
 
 End Sub
+
+
+Sub Logget1_Click()
+    
+    Dim file_path As String
+    Dim pro_num As Integer          'テラタームプロセス数
+    Dim i As Integer                'ループ用変数
+    Dim myFolder As String
+    Dim myFolder2 As String
+    Dim file_name As String
+    Dim file_name_macro As String
+    Dim objFSO As Object
+    Dim r As Range  'オートフィルタ抽出行用
+    Dim myRange As AutoFilter
+    Set myRange = ActiveSheet.AutoFilter
+    Dim action
+    
+    
+'初期パラメータ
+    file_path = ThisWorkbook.Path
+    pro_num = Cells(2, 8).Value
+    
+    Set objFSO = CreateObject("Scripting.FileSystemObject")
+    
+'ファイル存在確認（あれば消す）
+        
+'ファイルが存在すれば削除（前処理）
+    
+    For i = 0 To 5
+        file_name = "login" + CStr(i) + ".txt"
+        file_name_macro = "login_macro" + CStr(i) + ".ttl"
+        myFolder = file_path + "\" + file_name
+        myFolder2 = file_path + "\" + file_name_macro
+        
+        'login.txtファイル削除
+        If objFSO.fileexists(myFolder) = True Then
+            objFSO.DeleteFile myFolder
+        End If
+        'login_macro.ttlファイル削除
+        If objFSO.fileexists(myFolder2) = True Then
+            objFSO.DeleteFile myFolder2
+        End If
+    Next
+    Set objFSO = Nothing
+      
+    Call Make_target_File
+    
+    Call Make_ttl_File
+    
+    Call Make_command_File1
+    
+    'teraterm起動↓
+    For i = 0 To (pro_num - 1)
+        Set objFSO = CreateObject("Scripting.FileSystemObject")
+        file_name = "login_macro" + CStr(i) + ".ttl"
+        myFolder = file_path + "\" + file_name
+        If objFSO.fileexists(myFolder) = True Then
+            action = Shell("C:\Program Files (x86)\teraterm\ttpmacro.exe " + file_path + "\" + "login_macro" + CStr(i) + ".ttl", 1)
+        End If
+    Next
+
+End Sub
