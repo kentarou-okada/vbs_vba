@@ -1,0 +1,683 @@
+Option Explicit
+
+Sub Make_target_File()
+    Dim intFF_out As Integer            ' FreeFile値_出力用
+    Dim pro_num As Integer              'テラタームプロセス数
+    Dim file_path As String             ' Excel保存パス
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim file_name As String             ' 出力ファイル名(IP/パス等)
+    Dim strREC(1000) As Variant         ' 出力値
+    Dim arr_num As Integer              '要素数取得
+    Dim gyo2 As Integer
+    Dim r As Range                      'オートフィルタ抽出行用
+    Dim myRange As AutoFilter
+    Set myRange = ActiveSheet.AutoFilter
+    Dim i As Integer
+    
+
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+    pro_num = Cells(2, 8).Value
+    
+    arr_num = 0
+    gyo2 = 11
+
+If Not myRange Is Nothing Then
+     For Each r In ActiveSheet.AutoFilter.Range.Columns(1).SpecialCells(xlCellTypeVisible)
+         gyo2 = r.Row
+         If (gyo2 > 10 And Cells(gyo2, 1) = "o") Then
+            strREC(arr_num) = Cells(gyo2, 5).Value + "%1" + Cells(gyo2, 6).Value + "%2" + Cells(gyo2, 7).Value + "%3" + CStr(Cells(gyo2, 8).Value) + "%4" + CStr(Cells(gyo2, 4).Value)
+            arr_num = arr_num + 1
+         End If
+     Next r
+Else
+    Do While Cells(gyo2, 4) <> ""
+       
+            If (Cells(gyo2, 1) = "o") Then
+                strREC(arr_num) = Cells(gyo2, 5).Value + "%1" + Cells(gyo2, 6).Value + "%2" + Cells(gyo2, 7).Value + "%3" + CStr(Cells(gyo2, 8).Value) + "%4" + CStr(Cells(gyo2, 4).Value)
+                arr_num = arr_num + 1
+            End If
+            
+        gyo2 = gyo2 + 1
+    Loop
+End If
+        
+'## teraterm起動数分アドレスファイル作成
+For i = 0 To (pro_num - 1)
+    file_name = "login" + CStr(i) + ".txt"
+    strFileName_out = file_path + "\" + file_name
+    
+    ' FreeFile値の取得(以降この値で入出力する)
+    intFF_out = FreeFile
+
+    ' 指定ファイルをOPEN
+    Open strFileName_out For Output As #intFF_out
+    Gyo = i
+    ' ファイルのEOF(End of File)まで繰り返す
+    Do While strREC(Gyo) <> ""
+        '出力値編集
+            Print #intFF_out, strREC(Gyo)
+        Gyo = Gyo + pro_num
+    Loop
+    ' 指定ファイルをCLOSE
+    Close #intFF_out
+Next
+
+End Sub
+
+Option Explicit
+
+Sub Make_ttl_File()
+    Dim intFF_out As Integer            ' FreeFile値_出力用
+    Dim pro_num As Integer          'テラタームプロセス数
+    Dim file_path As String             ' Excel保存パス
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim file_name As String             ' 出力ファイル名(IP/パス等)
+    Dim strREC As Variant               ' 出力値
+    Dim LogFolder As String             'テラタームログ出力フォルダ
+    Dim tate As Integer                 'コマンド取得用変数
+    Dim yoko As Integer                 'コマンド取得用変数
+    Dim lp_cnt As Integer               'teraterm起動数
+    Dim id As Integer                 '機器判別用変数
+
+
+
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+    pro_num = Cells(2, 8).Value
+
+
+'########　teraterm起動数
+For lp_cnt = 0 To (pro_num - 1)
+
+    file_name = "login_macro" + CStr(lp_cnt) + ".ttl"
+    strFileName_out = file_path + "\" + file_name
+    
+    ' FreeFile値の取得(以降この値で入出力する)
+    intFF_out = FreeFile
+
+    'エラー処理
+    On Error GoTo ErrorHandler
+
+        ' 指定ファイルをOPEN(入力モード)
+            Open strFileName_out For Output As #intFF_out
+            
+        Print #intFF_out, "fileopen fhandle 'login" + CStr(lp_cnt) + ".txt' 0"
+        Print #intFF_out, ""
+        Print #intFF_out, ":loop"
+        Print #intFF_out, "filereadln fhandle line"
+        Print #intFF_out, "if result goto fclose"
+        Print #intFF_out, ""
+        Print #intFF_out, "strlen line"
+        Print #intFF_out, ""
+        Print #intFF_out, "length = result"
+        Print #intFF_out, ""
+        Print #intFF_out, ";add_end:アドレスの末尾"
+        Print #intFF_out, ";logusr_start:ログインパスの先頭"
+        Print #intFF_out, ";logusr_end:ログインパスの末尾"
+        Print #intFF_out, ";psw_start"
+        Print #intFF_out, ";psw_end"
+        Print #intFF_out, ";jg_start"
+        Print #intFF_out, ";jg_end"
+        Print #intFF_out, ";host_start"
+        Print #intFF_out, ";host_end"
+        Print #intFF_out, ""
+        Print #intFF_out, ";引数分解"
+        Print #intFF_out, "strscan line '%1'"
+        Print #intFF_out, "add_end = result - 1"
+        Print #intFF_out, "logusr_start = result + 2"
+        Print #intFF_out, ""
+        Print #intFF_out, "strscan line '%2'"
+        Print #intFF_out, "logusr_end = result - 1"
+        Print #intFF_out, "psw_start = result + 2"
+        Print #intFF_out, ""
+        Print #intFF_out, "strscan line '%3'"
+        Print #intFF_out, "psw_end = result - 1"
+        Print #intFF_out, "jg_start = result + 2"
+        Print #intFF_out, ""
+        Print #intFF_out, "strscan line '%4'"
+        Print #intFF_out, "jg_end = result - 1"
+        Print #intFF_out, "host_start = result + 2"
+        Print #intFF_out, ""
+        Print #intFF_out, "strlen line"
+        Print #intFF_out, "host_end = result"
+        Print #intFF_out, ""
+        Print #intFF_out, ";アドレス"
+        Print #intFF_out, "strcopy line 1 add_end address"
+        Print #intFF_out, ";ログインパス"
+        Print #intFF_out, "tmpstrlen = logusr_end - logusr_start + 1"
+        Print #intFF_out, "strcopy line logusr_start tmpstrlen logusr"
+        Print #intFF_out, ";特権"
+        Print #intFF_out, "tmpstrlen = psw_end - psw_start + 1"
+        Print #intFF_out, "strcopy line psw_start tmpstrlen psw"
+        Print #intFF_out, ";機器の判別"
+        Print #intFF_out, "strcopy line jg_start 1 hogehoge"
+        Print #intFF_out, "str2int judge hogehoge"
+        Print #intFF_out, ";ホストネーム(エクセル)"
+        Print #intFF_out, "strcopy line host_start host_end hostname_excel"
+        Print #intFF_out, ""
+        Print #intFF_out, ""
+Print #intFF_out, "PROMPT = '.+@.+[>#$:]'"
+Print #intFF_out, "PATH = 'X:\temp\'"
+
+'##　ログイン処理
+Print #intFF_out, ";directorログイン============================================"
+Print #intFF_out, "if judge = 1 then"
+Print #intFF_out, "do"
+Print #intFF_out, "; 接続状態確認"
+Print #intFF_out, "testlink"
+Print #intFF_out, "mpause 10"
+Print #intFF_out, "; まだホストと接続されている(resultが2)ならばループを繰り返す"
+Print #intFF_out, "loop while result = 2 "
+Print #intFF_out, "mpause 20"
+Print #intFF_out, "connect 'ssh://admin@XX.XX.XX.X /auth=password /passwd=XXX'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "exec 'cmd /c md X:\temp'"
+Print #intFF_out, "getdate DATE '%Y%m%d_%H%M'"
+Print #intFF_out, "strconcat PATH hostname_excel"
+Print #intFF_out, "strconcat PATH '_'"
+Print #intFF_out, "strconcat PATH DATE"
+Print #intFF_out, "strconcat PATH '.log'"
+Print #intFF_out, "logopen PATH 0 1 0 0 0"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "pause 1"
+Print #intFF_out, ""
+
+Print #intFF_out, "elseif judge = 2 then"
+Print #intFF_out, "do"
+Print #intFF_out, "; 接続状態確認"
+Print #intFF_out, "testlink"
+Print #intFF_out, "mpause 10"
+Print #intFF_out, "; まだホストと接続されている(resultが2)ならばループを繰り返す"
+Print #intFF_out, "loop while result = 2 "
+Print #intFF_out, "mpause 20"
+Print #intFF_out, "connect 'ssh://admin@X.X.X.X /auth=password /passwd=XXX'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "exec 'cmd /c md X:\temp'"
+Print #intFF_out, "getdate DATE '%Y%m%d_%H%M'"
+Print #intFF_out, "strconcat PATH hostname_excel"
+Print #intFF_out, "strconcat PATH '_'"
+Print #intFF_out, "strconcat PATH DATE"
+Print #intFF_out, "strconcat PATH '.log'"
+Print #intFF_out, "logopen PATH 0 1 0 0 0"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "pause 1"
+Print #intFF_out, ""
+
+Print #intFF_out, "elseif judge = 3 then"
+Print #intFF_out, "do"
+Print #intFF_out, "; 接続状態確認"
+Print #intFF_out, "testlink"
+Print #intFF_out, "mpause 10"
+Print #intFF_out, "; まだホストと接続されている(resultが2)ならばループを繰り返す"
+Print #intFF_out, "loop while result = 2 "
+Print #intFF_out, "mpause 20"
+Print #intFF_out, "connect 'ssh://admin@X.X.X.X /auth=password /passwd=XX'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "exec 'cmd /c md X:\temp'"
+Print #intFF_out, "getdate DATE '%Y%m%d_%H%M'"
+Print #intFF_out, "strconcat PATH hostname_excel"
+Print #intFF_out, "strconcat PATH '_'"
+Print #intFF_out, "strconcat PATH DATE"
+Print #intFF_out, "strconcat PATH '.log'"
+Print #intFF_out, "logopen PATH 0 1 0 0 0"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "pause 1"
+Print #intFF_out, ""
+
+
+Print #intFF_out, ";### BOXログイン ######################################"
+Print #intFF_out, "if judge = 1 then"
+Print #intFF_out, "COMMAND = 'ssh '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, ";ログイン判断(1=BOX,2=RT,PC=3)"
+Print #intFF_out, "case=1"
+
+Print #intFF_out, ";### RTログイン ######################################"
+Print #intFF_out, "elseif judge = 2 then"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln 'ssh admin@10.100.134.86'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln 'Kdev?0802'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "COMMAND = 'ssh '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'enable'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "wait '#'"
+Print #intFF_out, ";ログイン判断(1=BOX,2=RT,PC=3)"
+Print #intFF_out, "case=2"
+Print #intFF_out, ""
+
+Print #intFF_out, ";### PCログイン ######################################"
+Print #intFF_out, "elseif judge = 3 then"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln 'ssh admin@10.100.134.86'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln 'Kdev?0802'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait 'cli>'"
+Print #intFF_out, "COMMAND = 'ssh '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "Wait '$'"
+Print #intFF_out, ";ログイン判断(1=BOX,2=RT,PC=3)"
+Print #intFF_out, "case=3"
+Print #intFF_out, ""
+
+Print #intFF_out, ";### RTログイン(telnet) ######################################"
+Print #intFF_out, "elseif judge = 4 then"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln 'ssh admin@10.100.134.86'"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln 'Kdev?0802'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "COMMAND = 'telnet '"
+Print #intFF_out, "strconcat COMMAND logusr"
+Print #intFF_out, "strconcat COMMAND '@'"
+Print #intFF_out, "strconcat COMMAND address"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln  COMMAND"
+Print #intFF_out, "wait ':'"
+Print #intFF_out, "sendln psw"
+Print #intFF_out, "Wait '$'"
+Print #intFF_out, ";ログイン判断(1=BOX,2=RT,PC=3,4=RT(telnet))"
+Print #intFF_out, "case=4"
+Print #intFF_out, ""
+Print #intFF_out, "endif"
+Print #intFF_out, ""
+
+
+' 指定ファイルをCLOSE
+Close #intFF_out
+Next
+
+    'エラー処理
+    Exit Sub
+ErrorHandler:
+    
+    MsgBox Err.Description + "エラーが発生したため処理を終了します。" + vbLf + "「ttlファイル」または「src.txt」を閉じてください"
+    
+Endmacro:
+
+End Sub
+
+Option Explicit
+
+Sub Make_command_File1()
+
+    Dim intFF_out As Integer            ' FreeFile値_出力用
+    Dim pro_num As Integer              'テラタームプロセス数
+    Dim file_path As String             ' Excel保存パス
+    Dim log_sheet As Worksheet          ' showコマンド用シート
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim file_name As String             ' 出力ファイル名(IP/パス等)
+    Dim strREC As Variant               ' 出力値
+    Dim LogFolder As String             'テラタームログ出力フォルダ
+    Dim tate As Integer                 'コマンド取得用変数
+    Dim yoko As Integer                 'コマンド取得用変数
+    Dim lp_cnt As Integer               'teraterm起動数
+    Dim id As Integer                   '機器判別用変数
+    
+
+
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+    pro_num = Cells(2, 8).Value
+
+'########　teraterm起動数
+For lp_cnt = 0 To (pro_num - 1)
+
+    file_name = "login_macro" + CStr(lp_cnt) + ".ttl"
+    strFileName_out = file_path + "\" + file_name
+    
+    ' FreeFile値の取得(以降この値で入出力する)
+    intFF_out = FreeFile
+
+    'エラー処理
+    On Error GoTo ErrorHandler
+
+        ' 指定ファイルをOPEN(入力モード)
+            Open strFileName_out For Append As #intFF_out
+            
+
+'## BOX コマンド取得###########
+Print #intFF_out, "if case = 1 then"
+tate = 3
+yoko = 2
+
+Do Until Worksheets("showコマンド").Cells(tate, yoko) = ""
+    Print #intFF_out, "sendln '" + Worksheets("showコマンド").Cells(tate, yoko) + "'"
+    Print #intFF_out, "waitregex PROMPT"
+    tate = tate + 1
+Loop
+Print #intFF_out, ""
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, ""
+
+
+'## RT コマンド取得###########
+Print #intFF_out, "elseif case = 2 then"
+tate = 3
+yoko = 5
+Do Until Worksheets("showコマンド").Cells(tate, yoko) = ""
+    Print #intFF_out, "sendln '" + Worksheets("showコマンド").Cells(tate, yoko) + "'"
+    Print #intFF_out, "wait '#'"
+    tate = tate + 1
+Loop
+Print #intFF_out, ""
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, ""
+
+
+'## PC コマンド取得###########
+Print #intFF_out, "elseif case = 3 then"
+tate = 3
+yoko = 8
+Do Until Worksheets("showコマンド").Cells(tate, yoko) = ""
+    Print #intFF_out, "sendln '" + Worksheets("showコマンド").Cells(tate, yoko) + "'"
+    Print #intFF_out, "waitregex PROMPT"
+    tate = tate + 1
+Loop
+'##　コマンド取得###########
+Print #intFF_out, ""
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, ""
+
+Print #intFF_out, "elseif case = 4 then"
+'## RT コマンド取得###########
+tate = 3
+yoko = 11
+Do Until Worksheets("showコマンド").Cells(tate, yoko) = ""
+    Print #intFF_out, "sendln '" + Worksheets("showコマンド").Cells(tate, yoko) + "'"
+    Print #intFF_out, "wait '#'"
+    tate = tate + 1
+Loop
+Print #intFF_out, ""
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '$'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, ""
+
+
+Print #intFF_out, "elseif case = 11 then"
+'##  BOX コマンド取得###########
+tate = 3
+yoko = 14
+Do Until Worksheets("showコマンド").Cells(tate, yoko) = ""
+    Print #intFF_out, "sendln '" + Worksheets("showコマンド").Cells(tate, yoko) + "'"
+    Print #intFF_out, "waitregex PROMPT"
+    tate = tate + 1
+Loop
+Print #intFF_out, ""
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '#'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, ""
+
+
+Print #intFF_out, "elseif case = 12 then"
+'## PC コマンド取得###########
+tate = 3
+yoko = 17
+Do Until Worksheets("showコマンド").Cells(tate, yoko) = ""
+    Print #intFF_out, "sendln '" + Worksheets("showコマンド").Cells(tate, yoko) + "'"
+    Print #intFF_out, "waitregex PROMPT"
+    tate = tate + 1
+Loop
+Print #intFF_out, ""
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "sendln 'exit'"
+Print #intFF_out, ""
+
+
+Print #intFF_out, "endif"
+Print #intFF_out, ""
+Print #intFF_out, "logclose"
+Print #intFF_out, ""
+Print #intFF_out, "goto loop"
+Print #intFF_out, ""
+Print #intFF_out, ":fclose"
+Print #intFF_out, "fileclose fhandle"
+Print #intFF_out, "end"
+
+' 指定ファイルをCLOSE
+Close #intFF_out
+Next
+
+    'エラー処理
+    Exit Sub
+ErrorHandler:
+    
+    MsgBox Err.Description + "エラーが発生したため処理を終了します。" + vbLf + "「ttlファイル」または「src.txt」を閉じてください"
+    
+Endmacro:
+End Sub
+
+Option Explicit
+
+Sub login_target_File()
+    Dim intFF_out As Integer            ' FreeFile値_出力用
+    Dim file_path As String             ' Excel保存パス
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim file_name As String             ' 出力ファイル名(IP/パス等)
+    Dim strREC As Variant               ' 出力値
+    
+
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+    file_name = "login0.txt"
+
+    strFileName_out = file_path + "\" + file_name
+    
+    ' FreeFile値の取得(以降この値で入出力する)
+    intFF_out = FreeFile
+
+    ' 指定ファイルをOPEN(入力モード)
+    Open strFileName_out For Output As #intFF_out
+    '対象セル行取得
+    Gyo = ActiveCell.Row
+    '出力値編集
+    If Gyo < 11 Then
+        MsgBox "有効行を選択してください。"
+    Else
+        strREC = Cells(Gyo, 5).Value + "%1" + Cells(Gyo, 6).Value + "%2" + Cells(Gyo, 7).Value + "%3" + CStr(Cells(Gyo, 8).Value) + "%4" + CStr(Cells(Gyo, 4).Value)
+        Print #intFF_out, strREC
+    End If
+    Close #intFF_out
+End Sub
+
+
+Option Explicit
+
+
+Sub login_ttl_File()
+    Dim intFF_out As Integer            ' FreeFile値_出力用
+    Dim file_path As String             ' Excel保存パス
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim Gyo As Long                     ' 収容するセルの行
+    Dim file_name As String             ' 出力ファイル名(IP/パス等)
+    Dim strREC As Variant               ' 出力値
+    Dim id As Integer                 '機器判別用変数
+    
+    
+    '初期パラメータ
+    file_path = ThisWorkbook.Path
+    file_name = "login_macro0.ttl"
+
+    strFileName_out = file_path + "\" + file_name
+            
+    ' FreeFile値の取得(以降この値で入出力する)
+    intFF_out = FreeFile
+
+    'エラー処理
+    On Error GoTo ErrorHandler
+
+    Gyo = ActiveCell.Row
+    '出力値編集
+    If Gyo < 11 Then
+        MsgBox "有効行を選択してください。"
+    Else
+        id = CInt(Cells(Gyo, 8).Value)
+    
+    End If
+    ' 指定ファイルをOPEN(入力モード)
+    Open strFileName_out For Output As #intFF_out
+    
+Print #intFF_out, ""
+Print #intFF_out, "fileopen fhandle 'login0.txt' 0"
+Print #intFF_out, ""
+Print #intFF_out, "filereadln fhandle line"
+Print #intFF_out, ""
+Print #intFF_out, "strlen line"
+Print #intFF_out, ""
+Print #intFF_out, "length = result"
+Print #intFF_out, ""
+Print #intFF_out, ";add_end:アドレスの末尾"
+Print #intFF_out, ";loginusr_start:ログインユーザ名の先頭"
+Print #intFF_out, ";loginuser_end:ログインユーザ名の末尾"
+Print #intFF_out, ";psw_start"
+Print #intFF_out, ";psw_end"
+Print #intFF_out, ";jg_start"
+Print #intFF_out, ";jg_end"
+Print #intFF_out, ";host_start"
+Print #intFF_out, ";host_end"
+Print #intFF_out, ""
+Print #intFF_out, ";引数分解"
+Print #intFF_out, "strscan line '%1'"
+Print #intFF_out, "add_end = result - 1"
+Print #intFF_out, "loginusr_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strscan line '%2'"
+Print #intFF_out, "loginusr_end = result - 1"
+Print #intFF_out, "psw_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strscan line '%3'"
+Print #intFF_out, "psw_end = result - 1"
+Print #intFF_out, "jg_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strscan line '%4'"
+Print #intFF_out, "jg_end = result - 1"
+Print #intFF_out, "host_start = result + 2"
+Print #intFF_out, ""
+Print #intFF_out, "strlen line"
+Print #intFF_out, "host_end = result"
+Print #intFF_out, ""
+Print #intFF_out, ";アドレス"
+Print #intFF_out, "strcopy line 1 add_end address"
+Print #intFF_out, ";ログインユーザ名"
+Print #intFF_out, "tmpstrlen = loginusr_end - loginusr_start + 1"
+Print #intFF_out, "strcopy line loginusr_start tmpstrlen logusr"
+Print #intFF_out, ";パスワード"
+Print #intFF_out, "tmpstrlen = psw_end - psw_start + 1"
+Print #intFF_out, "strcopy line psw_start tmpstrlen psw"
+Print #intFF_out, ";機器の判別"
+Print #intFF_out, "strcopy line jg_start 1 hogehoge"
+Print #intFF_out, "str2int judge hogehoge"
+Print #intFF_out, ";ホストネーム(エクセルに入力したホスト名)"
+Print #intFF_out, "strcopy line host_start host_end hostname_excel"
+Print #intFF_out, ""
+Print #intFF_out, ""
+'##　環境ログイン処理
+Print #intFF_out, ";ログイン============================================"
+Print #intFF_out, "PROMPT = '.+@.+[>#$:]'"
+Print #intFF_out, "PATH = 'X:\temp\'"
+Print #intFF_out, "connect 'ssh://admin@X.X.X.X /auth=password /passwd=versa123'"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "exec 'cmd /c md X:\temp'"
+Print #intFF_out, "getdate DATE '%Y%m%d_%H%M'"
+Print #intFF_out, "strconcat PATH hostname_excel"
+Print #intFF_out, "strconcat PATH '_'"
+Print #intFF_out, "strconcat PATH DATE"
+Print #intFF_out, "strconcat PATH '.log'"
+Print #intFF_out, "logopen PATH 0 1 0 0 0"
+Print #intFF_out, "pause 1"
+Print #intFF_out, "sendln"
+Print #intFF_out, "waitregex PROMPT"
+Print #intFF_out, "sendln 'cli'"
+Print #intFF_out, "wait '>'"
+Print #intFF_out, "pause 1"
+Print #intFF_out, ";ログイン判断(1=BOX,2=PC,3=RT)"
+Print #intFF_out, ""
+' 指定ファイルをCLOSE
+Close #intFF_out
+
+    'エラー処理
+    Exit Sub
+ErrorHandler:
+    
+    MsgBox Err.Description + "エラーが発生したため処理を終了します。" + vbLf + "「ttlファイル」または「src.txt」を閉じてください"
+    
+Endmacro:
+
+End Sub
