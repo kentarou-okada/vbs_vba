@@ -1,0 +1,198 @@
+Sub nlb()
+    Dim fso
+    Dim originalFilePath
+    Dim filePathB As String
+    Dim newFilePathB As String
+    Dim cellContent As String
+    Dim syouzai As String
+    Dim vsrenban As String
+    Dim extractedText As String
+    Dim position As Integer
+    Dim wbA As Workbook
+    Dim wbB As Workbook
+    Dim lbname As String
+    Dim healthproto As String
+    Dim vsname As String
+    Dim oldvsname As String
+    Dim regex As Object
+    Dim matches As Object
+    Dim port As String
+    Dim naibugaibu As String
+    Dim env As String
+    Dim healthcheck As String
+    Dim ip1 As String
+    Dim ip2 As String
+    Dim session As String
+    Dim koteiip As String
+
+    
+        
+    ' 詳細設計書テンプレートのパスを設定
+    filePathB = ThisWorkbook.Path & "\【テンプレート】NLB詳細設計書.xlsx"
+    
+    ' 設定シートを開く
+    Set wbA = Workbooks.Open(filePathA)
+       
+    ' 設定シートの「設定シート」D5セル(VS連番)を取得
+    vsrenban = wbA.Sheets("設定シート").Range("D5").Value
+    
+    ' 設定シートの「設定シート」E19セル(システム名とシステムコード)を取得
+    cellContent = wbA.Sheets("設定シート").Range("E19").Value
+    
+     ' 「(」の位置を取得
+    position = InStr(cellContent, "(")
+    
+    ' 「(」までの文字列(商材名)を抽出
+    extractedText = Left(cellContent, position - 1)
+    
+    ' 商材名を変数に格納
+    syouzai = extractedText
+    
+    ' FileSystemObjectを作成
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    ' 新NLB詳細設計書のファイル名を設定
+    newFilePathB = ThisWorkbook.Path & "\" & syubetsu & "_" & vsrenban & naibuorgaibu & "_【" & syouzai & "】NLB詳細設計書.xlsx"
+    
+   ' 詳細設計書テンプレートのファイルをコピー
+    fso.CopyFile filePathB, newFilePathB
+    
+   ' FileSystemObjectを解放
+    Set fso = Nothing
+    
+    ' 詳細設計書を開く
+    Set wbB = Workbooks.Open(newFilePathB)
+    
+    
+    ' 以降の処理でexcelファイル間のセルコピーを実施
+   
+    ' LB名の初期値を空白に設定
+    lbname = ""
+    
+    ' セルE34に「nlb」が含まれているかチェック
+    If InStr(wbA.Sheets("設定シート").Range("E34").Value, "nlb") > 0 Then
+        lbname = wbA.Sheets("設定シート").Range("E34").Value
+        
+    ' セルE35に「nlb」が含まれているかチェック
+    ElseIf InStr(wbA.Sheets("設定シート").Range("E35").Value, "nlb") > 0 Then
+        lbname = wbA.Sheets("設定シート").Range("E35").Value
+    End If
+    
+       
+    ' 詳細設計書の「NLB」シートF206セルにNLB名をコピー
+    wbB.Sheets("NLB").Range("F206").Value = lbname
+    
+    ' 設定シートの「設定シート」E63セル(ヘルスチェックプロトコル)を取得
+    healthproto = wbA.Sheets("設定シート").Range("E63").Value
+    
+    ' 詳細設計書の「NLB」シートF25セルにヘルスチェックプロトコルをコピー
+    wbB.Sheets("NLB").Range("F25").Value = healthproto
+    
+    ' 設定シートの「設定シート」G20セル(VSname)を取得
+    vsname = wbA.Sheets("設定シート").Range("G20").Value
+    
+    ' 正規表現オブジェクトを作成
+    Set regex = CreateObject("VBScript.RegExp")
+    regex.Pattern = "\d+$" ' 末尾の数字をマッチするパターン
+    regex.Global = True
+    
+    ' マッチした部分を取得
+    If regex.Test(vsname) Then
+        Set matches = regex.Execute(vsname)
+        port = matches(0).Value
+    Else
+        port = "" ' 数字が見つからない場合は空文字を返す
+    End If
+    
+    ' 詳細設計書の「NLB」シートF11セル,F20セル,F252にポート番号をコピー
+    wbB.Sheets("NLB").Range("F11").Value = port
+    wbB.Sheets("NLB").Range("F20").Value = port
+    wbB.Sheets("NLB").Range("F252").Value = port
+    
+    ' 設定シートの「設定シート」E28セル(内部or外部)を取得
+    naibugaibu = wbA.Sheets("設定シート").Range("E28").Value
+    
+    ' 詳細設計書の「NLB」シートF209セルに内部or外部をコピー
+    wbB.Sheets("NLB").Range("F209").Value = naibugaibu
+    
+    ' 設定シートの「設定シート」E29,E30セル(設置VPC＋本番or開発)を取得
+    env = wbA.Sheets("設定シート").Range("E29").Value & wbA.Sheets("設定シート").Range("E30").Value
+    
+    ' 詳細設計書の「NLB」シートF4セルに設置VPC＋本番or開発をコピー
+    wbB.Sheets("NLB").Range("F4").Value = env
+    
+    ' 詳細設計書の「NLB」シートF242セルにタグ名をコピー
+    wbB.Sheets("NLB").Range("F242").Value = "OldVSName:" & vsname
+    
+    ' セルE46に「必要」が入力されているかチェックし、80-443統合が必要であればOldVSNameを変更
+    If InStr(wbA.Sheets("設定シート").Range("E46").Value, "必要") > 0 Then
+        oldvsname = "OldVSName:" & Left(vsname, Len(vsname) - 4) & "_80/" & vsname
+        wbB.Sheets("NLB").Range("F242").Value = oldvsname
+        
+    End If
+    
+    ' 設定シートの「設定シート」E62セル(ヘルスチェックパス)を取得
+    healthcheck = wbA.Sheets("設定シート").Range("E62").Value
+    
+    ' 詳細設計書の「NLB」シートF26セルにヘルスチェックパスをコピー
+    wbB.Sheets("NLB").Range("F26").Value = healthcheck
+    
+    ' 設定シートの「設定シート」E37セル(固定IP1)を取得
+    ip1 = wbA.Sheets("設定シート").Range("E37").Value
+    
+    ' 詳細設計書の「NLB」シートF214セルに固定IP1をコピー
+    wbB.Sheets("NLB").Range("F214").Value = ip1
+    
+    ' 設定シートの「設定シート」E38セル(固定IP2)を取得
+    ip2 = wbA.Sheets("設定シート").Range("E38").Value
+    
+    ' 詳細設計書の「NLB」シートF214セルに固定IP2をコピー
+    wbB.Sheets("NLB").Range("F218").Value = ip2
+        
+    ' セッション維持の初期値を空白に設定
+     session = ""
+    
+    ' セルE59に「不要」が入力されているかチェック
+    If InStr(wbA.Sheets("設定シート").Range("E59").Value, "不要") > 0 Then
+        session = "無効"
+        
+    ' セルE59に「維持」が含まれているかチェック
+    ElseIf InStr(wbA.Sheets("設定シート").Range("E59").Value, "維持") > 0 Then
+        session = "有効"
+    End If
+        
+    ' 詳細設計書の「NLB」シートF43セルにセッション維持をコピー
+    wbB.Sheets("NLB").Range("F43").Value = session
+        
+    ' 固定IP有無の初期値を空白に設定
+     koteiip = ""
+    
+    ' セルE31に「不要」が入力されているかチェック
+    If InStr(wbA.Sheets("設定シート").Range("E31").Value, "不要") > 0 Then
+        koteiip = "固定要件なし"
+        
+    ' セルE31に「必要」が含まれているかチェック
+    ElseIf InStr(wbA.Sheets("設定シート").Range("E31").Value, "必要") > 0 And naibugaibu = "内部" Then
+        koteiip = "固定(プライベートIP)"
+    
+    ' セルE31に「必要」が含まれているかチェック
+    ElseIf InStr(wbA.Sheets("設定シート").Range("E31").Value, "必要") > 0 And naibugaibu = "外部" Then
+        koteiip = "固定(EIP)"
+        
+        ' 詳細設計書の「NLB」シートF215,F219セルにLB設定後に記入をコピー
+        wbB.Sheets("NLB").Range("F215").Value = "LB設定後に記入"
+        wbB.Sheets("NLB").Range("F219").Value = "LB設定後に記入"
+    
+    End If
+        
+    ' 詳細設計書の「NLB」シートF211セルに固定IP有無をコピー
+    wbB.Sheets("NLB").Range("F211").Value = koteiip
+    
+    ' 新詳細設計書を保存
+    wbB.Save
+        
+    ' 設定シートと新詳細設計書を閉じる
+    wbA.Close SaveChanges:=False
+    wbB.Close SaveChanges:=False
+    
+End Sub
