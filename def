@@ -1,0 +1,81 @@
+Sub ELB詳細設計書生成()
+    
+    Call def.def
+    
+End Sub
+
+Option Explicit
+    Public filePathA As String
+    Public syubetsu As String
+    Public naibuorgaibu As String
+    Public elb As String
+
+Sub def()
+
+    Dim wbA As Workbook
+    Dim ws As Worksheet                 ' excelのsheet名を取得
+    Dim lastRow As Long                 ' ●が入力されている最終行を取得するために使用
+    Dim i As Long                       ' Forループに使用
+    
+    
+    Set ws = ThisWorkbook.Sheets("ELB詳細設計書生成")
+    
+    lastRow = ws.Cells(ws.Rows.Count, "C").End(xlUp).Row     ' C列の最終行から上に向かってセルを参照し、文字列が入力された最終行の行番号を取得
+        
+    For i = 7 To lastRow
+    
+    ' 設定シートのパスを取得
+    filePathA = ThisWorkbook.Path & "\" & ws.Cells(i, 3).Value
+        
+    ' ファイル名に「P-BIGIP」が含まれているかチェック
+    If InStr(filePathA, "P-BIGIP") > 0 Then
+        syubetsu = "P-BIGIP"
+        
+    ' ファイル名に「T-BIGIP」が含まれているかチェック
+    ElseIf InStr(filePathA, "T-BIGIP") > 0 Then
+        syubetsu = "T-BIGIP"
+    End If
+    
+    ' 内部、外部の初期値を設定
+    naibuorgaibu = ""
+    
+    ' ファイル名に「内部」が含まれているかチェック
+    If InStr(filePathA, "内部") > 0 Then
+        naibuorgaibu = "_内部"
+        
+    ' ファイル名に「外部」が含まれているかチェック
+    ElseIf InStr(filePathA, "外部") > 0 Then
+        naibuorgaibu = "_外部"
+    End If
+    
+    
+    ' 設定シートを開く
+    Set wbA = Workbooks.Open(filePathA)
+       
+    ' 設定シートの「設定シート」E32セル(ELB種別)を取得
+    elb = wbA.Sheets("設定シート").Range("E32").Value
+       
+    ' 条件分岐
+    Select Case elb
+        Case "NLB"
+            Call nlb.nlb
+        
+        Case "ALB"
+            Call alb.alb
+        
+        Case "NLB-ALB"
+            Call nlb.nlb
+            Call alb.alb
+            
+        Case Else
+            MsgBox filePathA & "のセルE32に『NLB』『ALB』『NLB-ALB』のいずれかを入力してください"
+    
+    End Select
+    
+    Next i
+    
+    ' メッセージを表示
+    MsgBox "NLB/ALB詳細設計書が作成されました。"
+
+
+End Sub
