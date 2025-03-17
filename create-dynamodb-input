@@ -1,0 +1,117 @@
+Sub 登録用コード生成()
+    Dim ws As Worksheet                 ' excelのsheet名を取得
+    Dim lastRow As Long                 ' nameが入力されている最終行を取得するために使用
+    Dim i As Long                       ' Forループに使用
+    Dim j As Long                       ' Forループに使用
+    Dim file_Path As String             ' マクロファイル保存先
+    Dim file_name As String             ' 出力するファイル名
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim lineContent As String           ' alb_name等をForループで取得する際に使用
+    Dim Stream As Object                ' .pyファイルを作成する際に文字コードはUTF-8を使用するため、Streamオブジェクトにテキストを格納
+    Dim currentDate As String           ' ファイル名の日付を取得
+    
+    
+    ' 現在の日付を取得し、文字列に変換
+    currentDate = Format(Date, "yyyymmdd")
+    
+    Set ws = ThisWorkbook.Sheets("dynamodb登録データ一覧")
+    file_Path = ThisWorkbook.Path    ' マクロファイルの保管先パスを取得
+    file_name = "dynamodb_input_" & currentDate & ".py"   ' 日付入りのファイル名を生成
+    strFileName_out = file_Path + "\" + file_name   ' マクロで生成したスクリプトファイルの保管先を指定
+    
+    lastRow = ws.Cells(ws.Rows.Count, "D").End(xlUp).Row     ' D列の最終行から上に向かってセルを参照し、文字列が入力された最終行の行番号を取得
+        
+    'Streamオブジェクトにテキストを全て格納する
+    
+    Set Stream = CreateObject("ADODB.Stream")
+    Stream.Charset = "UTF-8"
+    Stream.Open
+    Stream.WriteText "import boto3" & vbCrLf
+    Stream.WriteText "import json" & vbCrLf
+    Stream.WriteText "from collections import OrderedDict" & vbCrLf
+    Stream.WriteText "import sys" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# DynamoDBに接続" & vbCrLf
+    Stream.WriteText "dynamodb = boto3.resource('dynamodb')" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# テーブルを指定" & vbCrLf
+    Stream.WriteText "table = dynamodb.Table('siem-notify_resource_info')" & vbCrLf
+    Stream.WriteText "table_name = 'siem-notify_resource_info'" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# 登録するデータのリスト" & vbCrLf
+    Stream.WriteText "items = [" & vbCrLf
+
+    For i = 7 To lastRow
+     lineContent = "    {'type': '" & ws.Cells(i, 3).Value & "', 'name': '" & ws.Cells(i, 4).Value & "', 'accountId': '" & ws.Cells(i, 5).Value & "', 'commodityName': '" & ws.Cells(i, 6).Value & "', 'privateIpAddresses': ['" & ws.Cells(i, 7).Value & "', '" & ws.Cells(i, 8).Value & "'], 'privateIpAddressesOld1': ['', ''], 'privateIpAddressesOld2': ['', ''], 'updateDate': '', '備考': '" & ws.Cells(i, 9).Value & "'}," & vbCrLf
+     Stream.WriteText lineContent
+    Next i
+
+    Stream.WriteText "]" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# 複数のIDを指定してデータを取得するための関数" & vbCrLf
+    Stream.WriteText "def batch_get_items_from_dynamodb(keys):" & vbCrLf
+    Stream.WriteText "    try:" & vbCrLf
+    Stream.WriteText "        response = dynamodb.batch_get_item(" & vbCrLf
+    Stream.WriteText "            RequestItems={" & vbCrLf
+    Stream.WriteText "                table_name: {" & vbCrLf
+    Stream.WriteText "                    'Keys': keys" & vbCrLf
+    Stream.WriteText "                }" & vbCrLf
+    Stream.WriteText "            }" & vbCrLf
+    Stream.WriteText "        )" & vbCrLf
+    Stream.WriteText "        data = response['Responses'][table_name]" & vbCrLf
+    Stream.WriteText "        return data" & vbCrLf
+    Stream.WriteText "    except Exception as e:" & vbCrLf
+    Stream.WriteText "        print(f""Error fetching items: {e}"")" & vbCrLf
+    Stream.WriteText "        return None" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# データを指定した順序で並べ替えてJSON形式で出力する関数" & vbCrLf
+    Stream.WriteText "def print_data_as_ordered_json(data, order):" & vbCrLf
+    Stream.WriteText "    if data:" & vbCrLf
+    Stream.WriteText "        for item in data:" & vbCrLf
+    Stream.WriteText "            ordered_item = OrderedDict()" & vbCrLf
+    Stream.WriteText "            for key in order:" & vbCrLf
+    Stream.WriteText "                if key in item:" & vbCrLf
+    Stream.WriteText "                    ordered_item[key] = item[key]" & vbCrLf
+'    Stream.WriteText "            print(f""===== '{item['name']}' ====="")" & vbCrLf
+    Stream.WriteText "            json_data = json.dumps(ordered_item, indent=4, default=str)" & vbCrLf
+    Stream.WriteText "            print(json_data)" & vbCrLf
+    Stream.WriteText "    else:" & vbCrLf
+    Stream.WriteText "        print(""No data found"", file=sys.stderr)" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# バッチ書き込み" & vbCrLf
+    Stream.WriteText "with table.batch_writer() as batch:" & vbCrLf
+    Stream.WriteText "    for item in items:" & vbCrLf
+    Stream.WriteText "        batch.put_item(Item=item)" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+'    Stream.WriteText "print(""データが登録されました"")" & vbCrLf
+'    Stream.WriteText "print(""【登録データ】"")" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+    Stream.WriteText "# キーのリストを指定。特定の'type'、'name'キーを持つアイテムを取得。" & vbCrLf
+    Stream.WriteText "keys = [" & vbCrLf
+    
+    For j = 7 To lastRow
+     lineContent = "    {'type': '" & ws.Cells(j, 3).Value & "', 'name': '" & ws.Cells(j, 4).Value & "'}," & vbCrLf
+     Stream.WriteText lineContent
+    Next j
+    
+    Stream.WriteText "    ]" & vbCrLf
+    Stream.WriteText "data = batch_get_items_from_dynamodb(keys)" & vbCrLf
+    Stream.WriteText "# 表示順序を指定" & vbCrLf
+    Stream.WriteText "order = ['type', 'name', 'accountId', 'commodityName', 'privateIpAddresses', 'privateIpAddressesOld1', 'privateIpAddressesOld2', 'updateDate', '備考']" & vbCrLf
+    Stream.WriteText "print_data_as_ordered_json(data, order)" & vbCrLf
+    Stream.WriteText "" & vbCrLf
+
+
+    ' Streamオブジェクトの中身をファイルに出力する(名前を付けて保存する(1は新規作成 2は上書き保存))
+    Stream.SaveToFile (strFileName_out), 2
+   
+    ' Streamオブジェクトを閉じる
+    Stream.Close
+
+    ' Streamオブジェクトを空にする
+    Set Stream = Nothing
+    
+    MsgBox "pythonのスクリプトファイルの生成が完了しました。ファイルパス: " & strFileName_out
+
+
+End Sub
