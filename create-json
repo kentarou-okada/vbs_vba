@@ -1,0 +1,92 @@
+Sub jsonファイル生成()
+    Dim ws As Worksheet                 ' excelのsheet名を取得
+    Dim lastRow As Long                 ' nameが入力されている最終行を取得するために使用
+    Dim i As Long                       ' Forループに使用
+    Dim file_Path As String             ' マクロファイル保存先
+    Dim file_name As String             ' 出力するファイル名
+    Dim strFileName_out As String       ' 出力するファイル名(フルパス)
+    Dim lineContent As String           ' alb_name等をForループで取得する際に使用
+    Dim Stream As Object                ' .pyファイルを作成する際に文字コードはUTF-8を使用するため、Streamオブジェクトにテキストを格納
+    
+    Set ws = ThisWorkbook.Sheets("dynamodb登録データ一覧")
+    lastRow = ws.Cells(ws.Rows.Count, "D").End(xlUp).Row     ' D列の最終行から上に向かってセルを参照し、文字列が入力された最終行の行番号を取得
+        
+    
+
+    
+    For i = 7 To lastRow     '9行目からnameの最終行までループを繰り返す
+      file_Path = ThisWorkbook.Path    ' マクロファイルの保管先パスを取得
+      file_name = ws.Cells(i, 2).Value & "_VS" & ws.Cells(i, 1).Value & "-" & LCase(ws.Cells(i, 3).Value) & ".json"    ' jsonファイルを各セルから取得
+      strFileName_out = file_Path + "\" + file_name   ' マクロで生成したjsonファイルの保管先を指定
+    
+    'Streamオブジェクトにテキストを全て格納する
+    
+      Set Stream = CreateObject("ADODB.Stream")
+      Stream.Charset = "UTF-8"
+      Stream.Open
+      Stream.WriteText "{" & vbCrLf
+      Stream.WriteText "  ""type"": {" & vbCrLf
+      Stream.WriteText "    ""S"": """ & ws.Cells(i, 3).Value & """" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""name"": {" & vbCrLf
+      Stream.WriteText "    ""S"": """ & ws.Cells(i, 4).Value & """" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""accountId"": {" & vbCrLf
+      Stream.WriteText "    ""S"": """ & ws.Cells(i, 5).Value & """" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""commodityName"": {" & vbCrLf
+      Stream.WriteText "    ""S"": """ & ws.Cells(i, 6).Value & """" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""privateIpAddresses"": {" & vbCrLf
+      Stream.WriteText "    ""L"": [" & vbCrLf
+      Stream.WriteText "      {" & vbCrLf
+      Stream.WriteText "        ""S"": """ & ws.Cells(i, 7).Value & """" & vbCrLf
+      Stream.WriteText "      }," & vbCrLf
+      Stream.WriteText "      {" & vbCrLf
+      Stream.WriteText "        ""S"": """ & ws.Cells(i, 8).Value & """" & vbCrLf
+      Stream.WriteText "      }" & vbCrLf
+      Stream.WriteText "    ]" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""privateIpAddressesOld1"": {" & vbCrLf
+      Stream.WriteText "    ""L"": [" & vbCrLf
+      Stream.WriteText "      {" & vbCrLf
+      Stream.WriteText "        ""S"": """"" & vbCrLf
+      Stream.WriteText "      }," & vbCrLf
+      Stream.WriteText "      {" & vbCrLf
+      Stream.WriteText "        ""S"": """"" & vbCrLf
+      Stream.WriteText "      }" & vbCrLf
+      Stream.WriteText "    ]" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""privateIpAddressesOld2"": {" & vbCrLf
+      Stream.WriteText "    ""L"": [" & vbCrLf
+      Stream.WriteText "      {" & vbCrLf
+      Stream.WriteText "        ""S"": """"" & vbCrLf
+      Stream.WriteText "      }," & vbCrLf
+      Stream.WriteText "      {" & vbCrLf
+      Stream.WriteText "        ""S"": """"" & vbCrLf
+      Stream.WriteText "      }" & vbCrLf
+      Stream.WriteText "    ]" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""updateDate"": {" & vbCrLf
+      Stream.WriteText "    ""S"": """"" & vbCrLf
+      Stream.WriteText "  }," & vbCrLf
+      Stream.WriteText "  ""備考"": {" & vbCrLf
+      Stream.WriteText "    ""S"": """ & ws.Cells(i, 9).Value & """" & vbCrLf
+      Stream.WriteText "  }" & vbCrLf
+      Stream.WriteText "}" & vbCrLf
+
+      ' Streamオブジェクトの中身をファイルに出力する(名前を付けて保存する(1は新規作成 2は上書き保存))
+      Stream.SaveToFile (strFileName_out), 2
+   
+      ' Streamオブジェクトを閉じる
+      Stream.Close
+
+      ' Streamオブジェクトを空にする
+      Set Stream = Nothing
+    
+    Next i
+    
+    MsgBox "jsonファイルの生成が完了しました。ファイルパス: " & file_Path
+    
+
+End Sub
