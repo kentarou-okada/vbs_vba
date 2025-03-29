@@ -1,0 +1,30 @@
+    ' Python実行コマンド
+    Dim pythonPath As String
+    pythonPath = "python3 "
+    
+    ' excelファイルのパス
+    Dim bookDir As String
+    bookDir = ThisWorkbook.Path
+    
+    ' Pythonスクリプトのパス
+    Dim pythonScriptPath As String
+    pythonScriptPath = ThisWorkbook.Path & "\xxx.py"
+
+    ' 対象シート
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("sheet1")
+
+    ' コマンド作成
+    Dim cmd As String
+    Dim args As String
+    Dim test As String
+
+    args = ws.Cells(2, "G").Value
+    test = ws.Cells(3, "G").Value
+
+    cmd = "cmd /k" & pythonPath & pythonScriptPath & _
+          " -a " & args & _
+          IIf(test <> "", " -t " & test, "") &
+
+    CreateObject("WScript.Shell").Run cmd, 1, True
+
